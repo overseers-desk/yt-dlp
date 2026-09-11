@@ -432,6 +432,7 @@ from .deuxm import (
     DeuxMIE,
     DeuxMNewsIE,
 )
+from .deviantart import DeviantArtIE
 from .dfb import DFBIE
 from .dhm import DHMIE
 from .digitalconcerthall import DigitalConcertHallIE

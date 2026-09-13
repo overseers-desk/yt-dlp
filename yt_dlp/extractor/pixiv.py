@@ -38,6 +38,7 @@ class PixivIE(InfoExtractor):
     }]
 
     def _call_api(self, path, artwork_id, note, fatal=True):
+        # An artwork gated behind a login answers 404 with an error body
         response = self._download_json(
             f'https://www.pixiv.net/ajax/{path}', artwork_id, note, fatal=fatal,
             headers={'Referer': 'https://www.pixiv.net/'}, expected_status=404)

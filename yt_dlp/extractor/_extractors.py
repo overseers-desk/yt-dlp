@@ -1418,6 +1418,7 @@ from .pinterest import (
     PinterestCollectionIE,
     PinterestIE,
 )
+from .pixiv import PixivIE
 from .platzi import (
     PlatziCourseIE,
     PlatziIE,

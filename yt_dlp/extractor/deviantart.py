@@ -1,3 +1,5 @@
+import itertools
+
 from .common import InfoExtractor
 from ..utils import (
     ExtractorError,
@@ -47,6 +49,8 @@ class DeviantArtIE(InfoExtractor):
             raise ExtractorError('Unable to find deviation data')
         if not deviation.get('isVideo'):
             raise ExtractorError('This deviation is not a video', expected=True)
+        if deviation.get('isBlocked'):
+            self.raise_login_required('This deviation is blocked for logged-out users')
 
         formats = traverse_obj(deviation, ('media', 'types', lambda _, v: v['t'] == 'video' and url_or_none(v['b']), {
             'url': 'b',
@@ -96,3 +100,43 @@ class DeviantArtIE(InfoExtractor):
                 'tags': ('tags', ..., 'name', {str}, all),
             })),
         }
+
+
+class DeviantArtGalleryIE(InfoExtractor):
+    IE_NAME = 'deviantart:gallery'
+    _VALID_URL = r'https?://(?:www\.)?deviantart\.com/(?P<id>[\w-]+)/gallery(?:/all)?/?(?:[?#]|$)'
+    _TESTS = [{
+        'url': 'https://www.deviantart.com/dailydreamsaii/gallery',
+        'info_dict': {
+            'id': 'dailydreamsaii',
+            'title': 'dailydreamsaii',
+        },
+        'playlist_mincount': 1,
+    }]
+    _PAGE_SIZE = 24
+
+    def _entries(self, username, csrf_token):
+        for page_num in itertools.count(1):
+            page = self._download_json(
+                'https://www.deviantart.com/_puppy/dashared/gallection/contents', username,
+                f'Downloading page {page_num}', query={
+                    'username': username,
+                    'type': 'gallery',
+                    'all_folder': 'true',
+                    'offset': (page_num - 1) * self._PAGE_SIZE,
+                    'limit': self._PAGE_SIZE,
+                    'csrf_token': csrf_token,
+                })
+            for deviation in traverse_obj(page, ('results', lambda _, v: v['isVideo'] and url_or_none(v['url']))):
+                yield self.url_result(
+                    deviation['url'], DeviantArtIE, str_or_none(deviation.get('deviationId')),
+                    deviation.get('title'))
+            if not page.get('hasMore'):
+                break
+
+    def _real_extract(self, url):
+        username = self._match_id(url)
+        webpage = self._download_webpage(url, username)
+        csrf_token = self._search_regex(
+            r'\\"csrfToken\\":\\"([^"\\]+)', webpage, 'csrf token')
+        return self.playlist_result(self._entries(username, csrf_token), username, username)
